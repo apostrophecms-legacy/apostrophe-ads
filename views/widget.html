@@ -1,0 +1,8 @@
+<div class="apos-ad-container">
+  {%- for ad in item._snippets -%}
+    <a class="apos-ad-link" target="_blank" href="/apos-ads/serve?id={{ ad._id }}">
+      {#<div class="apos-ad-image" style="background-image: url('{{ aposAreaImagePath(ad, 'creative', { size: 'full', def: ''}) }}')" ></div>#}
+      <img src="{{ aposAreaImagePath(ad, 'creative', { size: 'full', def: ''}) }}">
+    </a>
+  {%- endfor -%}
+</div>
