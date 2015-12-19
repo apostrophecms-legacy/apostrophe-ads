@@ -83,12 +83,16 @@ ads.Ads = function(options, callback) {
   });
 
   self.clickThrough = function(req, res) {
-    if(!req.query.id) {
+    var adId = req.query.id || null;
+
+    if(!adId) {
       res.statusCode = 404;
       return res.send('notfound');
     }
 
-    return self.getOne(req, { _id: req.query.id }, {}, function(err, result) {
+    var taskReq = self._apos.getTaskReq();
+
+    return self.getOne(taskReq, { _id: req.query.id }, {}, function(err, result) {
       if(err || !result) {
         res.statusCode = 404;
         return res.send('notfound');
@@ -100,7 +104,7 @@ ads.Ads = function(options, callback) {
         result.clicks += 1;
       }
 
-      return self.putOne(req, result.slug, {}, result, function(err){
+      return self.putOne(taskReq, result.slug, {}, result, function(err){
         if(err) {
           res.statusCode = 404;
           return res.send(err);
