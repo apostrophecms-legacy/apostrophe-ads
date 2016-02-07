@@ -66,7 +66,7 @@ ads.Ads = function(options, callback) {
     ];
   }
 
-  options.modules = (options.modules || []).concat([ { dir: __dirname, name: 'blog' } ]);
+  options.modules = (options.modules || []).concat([ { dir: __dirname, name: 'ads' } ]);
 
   snippets.Snippets.call(this, options, null);  
 
