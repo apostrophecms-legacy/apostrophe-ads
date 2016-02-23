@@ -1,0 +1,41 @@
+k{% extends "baseWidgetEditor.html" %}
+{% include "formMacros.html" %}
+
+{% block modalClass %}
+  {{ super() }} {{widgetEditorClass}} apos-ui-modal-no-sidebar
+{% endblock%}
+
+{% block modalLabel %}
+  {{ __('Display %s', pluralLabel ) }}
+{% endblock %}
+
+{% block modalInstructions %}
+<p>{{ __('Start typing the title of a %s, then click on the suggestions that appear to insert them.
+Or just use tags to pull in %s.', instanceLabel | lower, pluralLabel | lower ) }}</p>
+{% endblock %}
+
+{% block formBody %}
+
+<fieldset class="apos-fieldset apos-fieldset-inset-controller apos-fieldset-select apos-fieldset-selectize">
+  <label class="apos-by-label apos-wide-label">Serve {{ pluralLabel }}</label>
+    <div class="apos-select-wrapper apos-inline-input">
+      <select class="apos-by" name="by" data-selectize>
+        <option value="id">By Name</option>
+        <option value="tag">Automatically</option>
+      </select>
+    </div>
+</fieldset>
+
+
+<fieldset class="apos-fieldset apos-fieldset-text apos-fieldset-inset apos-fieldset-by apos-fieldset-no-margin" data-by="id">
+  <label class="apos-wide-label">{{ __('By ' + instanceLabel + ' title') }}</label>
+  {{ formSelective('ids', __('Title'), { inline: true, placeholder: __('Type ' + instanceLabel + ' titles here') }) }}
+</fieldset>
+
+<fieldset class="apos-fieldset apos-fieldset-tags apos-fieldset-inset apos-fieldset-text apos-fieldset-by apos-fieldset-no-margin" data-by="tag">
+  <input type="hidden" name="limit" value="1">
+</fieldset>
+
+
+
+{% endblock %}

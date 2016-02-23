@@ -101,6 +101,10 @@ ads.Ads = function(options, callback) {
       // increment the ad's clicks, but only if the page is being loaded by
       // a non apostrophe user.
       if(!req.user) {
+        if(!result.clicks) {
+          result.clicks = 0;
+        }
+
         result.clicks += 1;
       }
 
@@ -117,13 +121,54 @@ ads.Ads = function(options, callback) {
 
   self.incrementImpressions = function(ads) {
     var req = self._apos.getTaskReq();
+
     return async.each(ads, function(ad, callback) {
+      if(!ad.impressions) {
+        ad.impressions = 0;
+      }
+
       ad.impressions += 1;
       return self.putOne(req, ad.slug, {}, ad, callback);
     });
   }
 
+  var superGet = self.get;
+  self.get = function(req, criteria, options, callback) {
+    if(options.serveAutomatically) {
+      return self.buildAutomaticCriteria(req, criteria, options, function(req, criteria, options){
+        return superGet(req, criteria, options, callback);       
+      });
+    }
+
+    return superGet(req, criteria, options, callback);
+  }
+
+
+  // Override this method to inject your custom criteria 
+  // and options to serve ads by
+  self.buildAutomaticCriteria = function(req, criteria, options, callback) {
+    // Hook for implementing your own automatic serving method
+
+    // Finally, do the superGet.
+    return callback(req, criteria, options);
+  }
+
   self.extendWidget = function(widget) {
+    var superAddCriteria = widget.addCriteria;
+
+    widget.addCriteria = function(item, criteria, options) {
+      if ((item.by === 'id') && (item.ids)) {
+        // Specific IDs were selected
+        criteria._id = { $in: item.ids };
+      } else {
+        // We are automatically serving ads
+        options.serveAutomatically = true;
+      }
+
+      // Limit is always 1. Widget never serves more than one ad.
+      options.limit = 1;
+    }
+
     var superRenderWidget = widget.renderWidget;
     widget.renderWidget = function(data) {
       if(data.item && data.item._snippets) {
