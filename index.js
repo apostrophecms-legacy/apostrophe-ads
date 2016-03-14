@@ -21,7 +21,7 @@ ads.Ads = function(options, callback) {
     icon: options.icon || 'bullhorn',
     menuName: 'aposAdMenu',
     widget: true
-  });  
+  });
 
   options.addFields = [
     {
@@ -68,7 +68,7 @@ ads.Ads = function(options, callback) {
 
   options.modules = (options.modules || []).concat([ { dir: __dirname, name: 'ads' } ]);
 
-  snippets.Snippets.call(this, options, null);  
+  snippets.Snippets.call(this, options, null);
 
   self.beforeInsert = function(req, data, snippet, callback) {
     // make sure we set default values for clicks and impressions.
@@ -82,61 +82,97 @@ ads.Ads = function(options, callback) {
     return self.clickThrough(req, res);
   });
 
-  self.clickThrough = function(req, res) {
-    var adId = req.query.id || null;
+  self._app.post(self._action + '/record-impression', function(req, res) {
+    return self.recordImpression(req, res);
+  });
 
-    if(!adId) {
+  self.clickThrough = function(req, res) {
+    var adId = self._apos.sanitizeId(req.query.id);
+
+    if (!adId) {
       res.statusCode = 404;
       return res.send('notfound');
     }
 
-    var taskReq = self._apos.getTaskReq();
+    var targetUrl;
 
-    return self.getOne(taskReq, { _id: req.query.id }, {}, function(err, result) {
-      if(err || !result) {
+    return async.series([ getUrl, incrementClicks ], function(err) {
+      if(err) {
         res.statusCode = 404;
-        return res.send('notfound');
+        return res.send(err);
       }
+      return res.redirect(targetUrl);
+    });
 
-      // increment the ad's clicks, but only if the page is being loaded by
-      // a non apostrophe user.
-      if(!req.user) {
-        if(!result.clicks) {
-          result.clicks = 0;
+    function getUrl(callback) {
+      return self.getOne(req, { _id: adId }, { fields: { targetUrl: 1 } }, function(err, result) {
+        if (err) {
+          return callback(err);
         }
-
-        result.clicks += 1;
-      }
-
-      return self.putOne(taskReq, result.slug, {}, result, function(err){
-        if(err) {
-          res.statusCode = 404;
-          return res.send(err);
-        }
-
-        return res.redirect(result.targetUrl);
+        targetUrl = result.targetUrl;
+        return callback(null);
       });
-    });
-  }
+    }
 
-  self.incrementImpressions = function(ads) {
-    var req = self._apos.getTaskReq();
+    function incrementClicks(callback) {
 
-    return async.each(ads, function(ad, callback) {
-      if(!ad.impressions) {
-        ad.impressions = 0;
+      // For performance and prevention of race conditions, go
+      // straight to mongo and use $inc. It will create the
+      // field if needed. -Tom
+
+      return self._apos.pages.update({
+        _id: adId
+      }, {
+        $inc: { clicks: 1 }
+      }, callback);
+    }
+
+  };
+
+  self.recordImpression = function(req, res) {
+    var adId = self._apos.sanitizeId(req.body.id);
+
+    if (!adId) {
+      res.statusCode = 404;
+      return res.send('notfound');
+    }
+
+    var targetUrl;
+
+    return async.series([ getTest, incrementImpressions ], function(err) {
+      if(err) {
+        res.statusCode = 404;
+        return res.send(err);
       }
-
-      ad.impressions += 1;
-      return self.putOne(req, ad.slug, {}, ad, callback);
+      return res.send({ status: 'ok' });
     });
-  }
+
+    // Fetching the ad confirms that it's really an ad, this user is
+    // allowed to see it, etc.
+    function getTest(callback) {
+      return self.getOne(req, { _id: adId }, { fields: { DUMMY: 1 } }, callback);
+    }
+
+    function incrementImpressions(callback) {
+
+      // For performance and prevention of race conditions, go
+      // straight to mongo and use $inc. It will create the
+      // field if needed. -Tom
+
+      return self._apos.pages.update({
+        _id: adId
+      }, {
+        $inc: { impressions: 1 }
+      }, callback);
+    }
+
+  };
 
   var superGet = self.get;
   self.get = function(req, criteria, options, callback) {
     if(options.serveAutomatically) {
       return self.buildAutomaticCriteria(req, criteria, options, function(req, criteria, options){
-        return superGet(req, criteria, options, callback);       
+        return superGet(req, criteria, options, callback);
       });
     }
 
@@ -144,7 +180,7 @@ ads.Ads = function(options, callback) {
   }
 
 
-  // Override this method to inject your custom criteria 
+  // Override this method to inject your custom criteria
   // and options to serve ads by
   self.buildAutomaticCriteria = function(req, criteria, options, callback) {
     // Hook for implementing your own automatic serving method
@@ -169,14 +205,6 @@ ads.Ads = function(options, callback) {
       options.limit = 1;
     }
 
-    var superRenderWidget = widget.renderWidget;
-    widget.renderWidget = function(data) {
-      if(data.item && data.item._snippets) {
-        self.incrementImpressions(data.item._snippets);
-      }
-
-      return superRenderWidget(data);
-    };
   };
 
   if (callback) {
