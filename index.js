@@ -200,10 +200,14 @@ ads.Ads = function(options, callback) {
         // We are automatically serving ads
         options.serveAutomatically = true;
       }
-
-      // Limit is always 1. Widget never serves more than one ad.
-      options.limit = 1;
     }
+
+    widget.renderWidget = function(data) {
+      if (data.item._snippets.length) {
+        data.item._snippets = [ data.item._snippets[_.random(0, data.item._snippets.length - 1)] ];
+      }
+      return widget.snippets.render('widget', data);
+    };
 
   };
 
