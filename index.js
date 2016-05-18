@@ -109,6 +109,9 @@ ads.Ads = function(options, callback) {
         if (err) {
           return callback(err);
         }
+        if (!result) {
+          return callback('notfound');
+        }
         targetUrl = result.targetUrl;
         return callback(null);
       });
