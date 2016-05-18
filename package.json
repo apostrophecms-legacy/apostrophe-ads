@@ -1,6 +1,6 @@
 {
   "name": "apostrophe-ads",
-  "version": "0.5.4",
+  "version": "0.5.5",
   "description": "Ads for apostrophe",
   "main": "index.js",
   "scripts": {
